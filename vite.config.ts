@@ -18,8 +18,9 @@ export default defineConfig({
         theme_color: '#060a0f',
         background_color: '#060a0f',
         display: 'standalone',
-        scope: '/elementais/',
-        start_url: '/elementais/',
+        // Ajuste para garantir que funcione no subdiretório do GitHub
+        scope: './',
+        start_url: './',
         icons: [
           {
             src: 'icon-192.png',
