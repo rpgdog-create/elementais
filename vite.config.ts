@@ -4,7 +4,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  // O 'base' deve ser o nome do seu repositório no GitHub
+  // Crucial: deve ser o nome exato do seu repositório
   base: '/elementais/',
   plugins: [
     react(),
@@ -18,7 +18,6 @@ export default defineConfig({
         theme_color: '#060a0f',
         background_color: '#060a0f',
         display: 'standalone',
-        // Ajuste para garantir que funcione no subdiretório do GitHub
         scope: './',
         start_url: './',
         icons: [
