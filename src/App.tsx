@@ -19,41 +19,91 @@ import { SPRITE_GROUPS, SPECIAL_SPRITE } from './data';
 type TabType = 'sprites' | 'super' | 'missões' | 'stats';
 type FilterType = 'all' | 'uncollected' | 'collected';
 
+// Persistent storage keys
+const STORAGE_KEYS = {
+  COLLECTION: 'rastreador_sprites_data_v2',
+  PROFILE: 'rastreador_sprites_profile_v2'
+};
+
+// Default profile values
+const DEFAULT_PROFILE = {
+  nickname: 'Colecionador',
+  favoriteSpriteId: 'amendoim-especial'
+};
+
+/**
+ * Safe localStorage getter with fallback
+ */
+const getFromStorage = <T,>(key: string, defaultValue: T): T => {
+  try {
+    const item = localStorage.getItem(key);
+    return item ? JSON.parse(item) : defaultValue;
+  } catch (error) {
+    console.warn(`Failed to parse ${key} from localStorage:`, error);
+    return defaultValue;
+  }
+};
+
+/**
+ * Safe localStorage setter with error handling
+ */
+const setToStorage = <T,>(key: string, value: T): void => {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (error) {
+    console.error(`Failed to save ${key} to localStorage:`, error);
+    // Fallback: Try clearing old data and retry once
+    if (error instanceof Error && error.name === 'QuotaExceededError') {
+      try {
+        // Remove old version keys if they exist
+        localStorage.removeItem('rastreador_sprites_data');
+        localStorage.removeItem('rastreador_sprites_profile');
+        localStorage.setItem(key, JSON.stringify(value));
+        console.info('Recovered from storage quota by clearing old data');
+      } catch (retryError) {
+        console.error('Could not recover from storage quota error:', retryError);
+      }
+    }
+  }
+};
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabType>('sprites');
   const [filterType, setFilterType] = useState<FilterType>('all');
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Initialize collection state from localStorage with fallback
   const [collectionState, setCollectionState] = useState<CollectionState>(() => {
-    try {
-      const saved = localStorage.getItem('rastreador_sprites_data');
-      return saved ? JSON.parse(saved) : {};
-    } catch {
-      return {};
-    }
+    return getFromStorage<CollectionState>(STORAGE_KEYS.COLLECTION, {});
   });
 
-  // Custom User Profile State (nickname & favorite sprite)
+  // Initialize profile state from localStorage with fallback
   const [profile, setProfile] = useState(() => {
-    try {
-      const saved = localStorage.getItem('rastreador_sprites_profile');
-      return saved ? JSON.parse(saved) : { nickname: 'rpgdog', favoriteSpriteId: 'amendoim-especial' };
-    } catch {
-      return { nickname: 'rpgdog', favoriteSpriteId: 'amendoim-especial' };
-    }
+    return getFromStorage(STORAGE_KEYS.PROFILE, DEFAULT_PROFILE);
   });
 
   // Modal display states
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
 
-  // Persist state to localstorage
+  // Mark as initialized after hydration
   useEffect(() => {
-    localStorage.setItem('rastreador_sprites_data', JSON.stringify(collectionState));
-  }, [collectionState]);
+    setIsInitialized(true);
+  }, []);
 
-  // Persist profile to localstorage
+  // Persist collection state to localStorage
   useEffect(() => {
-    localStorage.setItem('rastreador_sprites_profile', JSON.stringify(profile));
-  }, [profile]);
+    if (isInitialized) {
+      setToStorage(STORAGE_KEYS.COLLECTION, collectionState);
+    }
+  }, [collectionState, isInitialized]);
+
+  // Persist profile to localStorage
+  useEffect(() => {
+    if (isInitialized) {
+      setToStorage(STORAGE_KEYS.PROFILE, profile);
+    }
+  }, [profile, isInitialized]);
 
   // Toggle single item collected status
   const handleToggle = (id: string) => {
@@ -63,7 +113,7 @@ export default function App() {
     }));
   };
 
-  // Reset entire collection
+  // Reset entire collection with confirmation
   const handleReset = () => {
     setCollectionState({});
     setIsResetConfirmOpen(false);
@@ -125,6 +175,20 @@ export default function App() {
     )
   ];
 
+  // Don't render until hydrated to avoid hydration mismatch
+  if (!isInitialized) {
+    return (
+      <div className="min-h-screen bg-[#060a0f] text-slate-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin mb-4">
+            <Sparkles className="w-8 h-8 text-cyan-400 mx-auto" />
+          </div>
+          <p className="text-sm text-slate-400 font-mono">Carregando coleção...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#060a0f] text-slate-100 flex flex-col font-sans pb-12">
       
@@ -162,7 +226,7 @@ export default function App() {
                   
                   <button
                     onClick={() => setFilterType('all')}
-                    className={`flex items-center gap-1.5 px-4 py-2 rounded-lg transition-all cursor-pointer ${filterType === 'all' ? 'bg-[#182736] text-cyan-400 font-bold' : 'text-slate-400 hover:text-slate-200'}`}
+                    className={`flex items-center gap-1.5 px-4 py-2 rounded-lg transition-all cursor-pointer ${filterType === 'all' ? 'bg-[#182736] text-cyan-400 font-bold' : 'text-slate-400 hover:text-slate-300'}`}
                   >
                     <Layers className="w-3.5 h-3.5" />
                     <span>TODOS ({totalCount})</span>
@@ -170,7 +234,7 @@ export default function App() {
 
                   <button
                     onClick={() => setFilterType('uncollected')}
-                    className={`flex items-center gap-1.5 px-4 py-2 rounded-lg transition-all cursor-pointer ${filterType === 'uncollected' ? 'bg-[#182736] text-cyan-400 font-bold' : 'text-slate-400 hover:text-slate-200'}`}
+                    className={`flex items-center gap-1.5 px-4 py-2 rounded-lg transition-all cursor-pointer ${filterType === 'uncollected' ? 'bg-[#182736] text-cyan-400 font-bold' : 'text-slate-400 hover:text-slate-300'}`}
                   >
                     <EyeOff className="w-3.5 h-3.5" />
                     <span>FALTANDO ({totalCount - collectedCount})</span>
@@ -178,7 +242,7 @@ export default function App() {
 
                   <button
                     onClick={() => setFilterType('collected')}
-                    className={`flex items-center gap-1.5 px-4 py-2 rounded-lg transition-all cursor-pointer ${filterType === 'collected' ? 'bg-[#182736] text-cyan-400 font-bold' : 'text-slate-400 hover:text-slate-200'}`}
+                    className={`flex items-center gap-1.5 px-4 py-2 rounded-lg transition-all cursor-pointer ${filterType === 'collected' ? 'bg-[#182736] text-cyan-400 font-bold' : 'text-slate-400 hover:text-slate-300'}`}
                   >
                     <CheckSquare className="w-3.5 h-3.5" />
                     <span>COLETADOS ({collectedCount})</span>
@@ -190,7 +254,7 @@ export default function App() {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={handleUnlockRandom}
-                    className="px-4 py-2 bg-gradient-to-r from-cyan-950/40 to-blue-950/40 hover:from-cyan-900/60 hover:to-blue-900/60 border border-cyan-500/15 hover:border-cyan-500/30 text-cyan-300 font-semibold rounded-xl transition-all cursor-pointer flex items-center gap-2"
+                    className="px-4 py-2 bg-gradient-to-r from-cyan-950/40 to-blue-950/40 hover:from-cyan-900/60 hover:to-blue-900/60 border border-cyan-500/15 hover:border-cyan-500/30 text-cyan-300 font-mono text-[10px] font-bold rounded-lg uppercase tracking-wider transition-all cursor-pointer"
                   >
                     <span>⚡ Simular Descobertas</span>
                   </button>
@@ -293,7 +357,7 @@ export default function App() {
                 
                 {/* Avatar & Rank */}
                 <div className="flex items-center gap-4 bg-slate-900/40 p-4 rounded-2xl border border-slate-800/50">
-                  <div className="relative w-16 h-16 rounded-full bg-gradient-to-br from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 flex items-center justify-center p-1 shadow-lg overflow-hidden shrink-0">
+                  <div className="relative w-16 h-16 rounded-full bg-gradient-to-br from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 flex items-center justify-center p-1 shadow-lg overflow-hidden">
                     {getFavoriteSpriteImage() ? (
                       <img 
                         src={getFavoriteSpriteImage()} 
@@ -331,7 +395,7 @@ export default function App() {
                     maxLength={20}
                     value={profile.nickname}
                     onChange={(e) => setProfile({ ...profile, nickname: e.target.value || 'Colecionador' })}
-                    className="w-full bg-slate-950/80 border border-slate-800 hover:border-slate-700 focus:border-cyan-500/50 focus:outline-none rounded-xl px-3.5 py-2.5 text-sm text-slate-100 transition-all font-medium"
+                    className="w-full bg-slate-950/80 border border-slate-800 hover:border-slate-700 focus:border-cyan-500/50 focus:outline-none rounded-xl px-3.5 py-2.5 text-sm text-slate-100 transition-all"
                     placeholder="Apelido..."
                   />
                 </div>
@@ -344,7 +408,7 @@ export default function App() {
                   <select
                     value={profile.favoriteSpriteId}
                     onChange={(e) => setProfile({ ...profile, favoriteSpriteId: e.target.value })}
-                    className="w-full bg-[#0d1622] border border-slate-800 hover:border-slate-700 focus:border-cyan-500/50 focus:outline-none rounded-xl px-3 py-2.5 text-sm text-slate-100 transition-all font-medium scrollbar-thin cursor-pointer"
+                    className="w-full bg-[#0d1622] border border-slate-800 hover:border-slate-700 focus:border-cyan-500/50 focus:outline-none rounded-xl px-3 py-2.5 text-sm text-slate-100 transition-all"
                   >
                     {allSpritesList.map((sprite) => (
                       <option key={sprite.id} value={sprite.id} className="bg-[#0a1017] text-slate-200">
