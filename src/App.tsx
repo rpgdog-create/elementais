@@ -19,7 +19,7 @@ import { SPRITE_GROUPS, SPECIAL_SPRITE } from './data';
 type TabType = 'sprites' | 'super' | 'missões' | 'stats';
 type FilterType = 'all' | 'uncollected' | 'collected';
 
-// Persistent storage keys
+// Persistent storage keys with versioning
 const STORAGE_KEYS = {
   COLLECTION: 'rastreador_sprites_data_v2',
   PROFILE: 'rastreador_sprites_profile_v2'
@@ -36,6 +36,7 @@ const DEFAULT_PROFILE = {
  */
 const getFromStorage = <T,>(key: string, defaultValue: T): T => {
   try {
+    if (typeof window === 'undefined') return defaultValue;
     const item = localStorage.getItem(key);
     return item ? JSON.parse(item) : defaultValue;
   } catch (error) {
@@ -49,6 +50,7 @@ const getFromStorage = <T,>(key: string, defaultValue: T): T => {
  */
 const setToStorage = <T,>(key: string, value: T): void => {
   try {
+    if (typeof window === 'undefined') return;
     localStorage.setItem(key, JSON.stringify(value));
   } catch (error) {
     console.error(`Failed to save ${key} to localStorage:`, error);
