@@ -1,0 +1,6 @@
+{
+  "name": "Sprite Tracker",
+  "description": "Interactive sprite collection tracker with visual status filters.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
